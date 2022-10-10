@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title></title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type="text/css">
+        body {
+            font-size: 70px;
+            font-family: Arial;
+        }
+
+        button {
+            font: inherit;
+        }
+
+        ul {
+            font-size: 14px;
+            list-style: none;
+            padding: 0;
+        }
+    </style>
+</head>
+<body>
+    <button id="yes" type="button">Yes</button>
+    <button id="no" type="button">No</button>
+    <button id="whinge" type="button">Whinge</button>
+    <label >Yes chance <span id="yesChance"></span></label>
+    <ul id="eventList"></ul>
+</body>
+<script type="text/javascript">
+    const maxYes = 0.9;
+    const yesRecoveryRate = 0.000001;
+    const yesButton = document.querySelector('#yes');
+    const noButton = document.querySelector('#no');
+    const whingeButton = document.querySelector('#whinge');
+    const yesChanceText = document.querySelector('#yesChance');
+    const eventList = document.querySelector('#eventList');
+    let yesChance = localStorage.getItem('yesChance') || 1;
+    const eventsJson = localStorage.getItem('events');
+    let events = eventsJson ? JSON.parse(eventsJson) : [];
+
+    function render() {
+        yesChanceText.textContent = yesChance.toFixed(2);
+        Array.from(eventList.childNodes).map(node => node.remove());
+        events.slice().reverse().forEach(event => {
+            const item = document.createElement('li');;
+            item.textContent = `${new Date(event.timestamp).toLocaleString()}: ${event.type}, Yes chance: ${event.yesChance}`;
+            eventList.appendChild(item);
+        });
+    }
+
+    let lastUpdate = localStorage.getItem('lastUpdate') || null;
+    function update() {
+        const now = Date.now();
+        const timeSinceNextUpdate = (Date.now() - lastUpdate) || 0;
+        yesChance = Math.min(yesChance * 1 + yesRecoveryRate * timeSinceNextUpdate, maxYes);
+
+        lastUpdate = now;
+        localStorage.setItem('yesChance', yesChance);
+        localStorage.setItem('lastUpdate', lastUpdate);
+        localStorage.setItem('events', JSON.stringify(events));
+        render();
+        setTimeout(update, 1000);
+    }
+
+    update()
+
+    function no() {
+        events.push({ yesChance, type: 'no', timestamp: Date.now() })
+        yesChance *= 0.8;
+        update();
+        alert('no')
+    }
+
+    yesButton.addEventListener('click', event => {
+        if(Math.random() > yesChance) {
+            return no();
+        }
+
+        events.push({ yesChance, type: 'yes', timestamp: Date.now() })
+        alert('yes');
+    });
+
+    noButton.addEventListener('click', () => {
+        no();
+    });
+
+    whingeButton.addEventListener('click', () => {
+        events.push({ yesChance, type: 'whinge', timestamp: Date.now() })
+        yesChance = 0.1;
+        update();
+    });
+
+</script>
+</html>
