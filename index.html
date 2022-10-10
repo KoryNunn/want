@@ -21,7 +21,7 @@
     </style>
 </head>
 <body>
-    <button id="yes" type="button">Yes</button>
+    <button id="maybe" type="button">Maybe</button>
     <button id="no" type="button">No</button>
     <button id="whinge" type="button">Whinge</button>
     <label >Yes chance <span id="yesChance"></span></label>
@@ -30,7 +30,7 @@
 <script type="text/javascript">
     const maxYes = 0.9;
     const yesRecoveryRate = 0.000001;
-    const yesButton = document.querySelector('#yes');
+    const yesButton = document.querySelector('#maybe');
     const noButton = document.querySelector('#no');
     const whingeButton = document.querySelector('#whinge');
     const yesChanceText = document.querySelector('#yesChance');
@@ -69,7 +69,7 @@
         events.push({ yesChance, type: 'no', timestamp: Date.now() })
         yesChance *= 0.8;
         update();
-        alert('no')
+        alert('no');
     }
 
     yesButton.addEventListener('click', event => {
