@@ -15,10 +15,27 @@
             margin: 0.1em;
         }
 
+        #answer {
+            text-transform: capitalize;
+            font-weight: 600;
+        }
+
         ul {
-            font-size: 14px;
+            font-size: 16px;
             list-style: none;
             padding: 0;
+        }
+
+        li {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .result {
+            text-transform: capitalize;
+            font-weight: 600;
+            width: 70px;
         }
     </style>
 </head>
@@ -32,7 +49,7 @@
 </body>
 <script type="text/javascript">
     const maxYes = 0.9;
-    const yesRecoveryRate = 0.0000001;
+    const yesRecoveryRate = 0.000001;
     const answerText = document.querySelector('#answer');
     const yesButton = document.querySelector('#maybe');
     const noButton = document.querySelector('#no');
@@ -44,36 +61,45 @@
     let events = eventsJson ? JSON.parse(eventsJson) : [];
     let lastAnswer = localStorage.getItem('lastAnswer') || '___';
 
+    function renderAsPercent(scalar) {
+        return `${(scalar * 100).toFixed(2)}%`;
+    }
+
     function render() {
         answerText.textContent = lastAnswer;
-        yesChanceText.textContent = `${(yesChance * 100).toFixed(2)}%`;
+        yesChanceText.textContent = renderAsPercent(yesChance);
         Array.from(eventList.childNodes).map(node => node.remove());
         events.slice().reverse().forEach(event => {
             const item = document.createElement('li');;
-            item.textContent = `${new Date(event.timestamp).toLocaleString()}: ${event.type}, Yes chance: ${event.yesChance}`;
+            item.innerHTML = `
+                <span>${new Date(event.timestamp).toLocaleString()}</span><span class="result">${event.type}</span><span class="yesChance">(${renderAsPercent(event.yesChance)})</span>
+            `;
             eventList.appendChild(item);
         });
     }
 
     let lastUpdate = localStorage.getItem('lastUpdate') || null;
+    let updateTimeout;
     function update() {
+        clearTimeout(updateTimeout);
         const now = Date.now();
         const timeSinceNextUpdate = (Date.now() - lastUpdate) || 0;
-        yesChance = Math.min(yesChance * 1 + yesRecoveryRate * timeSinceNextUpdate, maxYes);
+        yesChance = Math.min(yesChance * 1 + Math.pow(yesChance, 2) * yesRecoveryRate * timeSinceNextUpdate, maxYes);
 
         lastUpdate = now;
         localStorage.setItem('yesChance', yesChance);
         localStorage.setItem('lastUpdate', lastUpdate);
         localStorage.setItem('events', JSON.stringify(events));
+        localStorage.setItem('lastAnswer', lastAnswer);
         render();
-        setTimeout(update, 1000);
+        updateTimeout = setTimeout(update, 100);
     }
 
     update()
 
     function no() {
         events.push({ yesChance, type: 'no', timestamp: Date.now() })
-        yesChance *= 0.8;
+        yesChance *= (1 - (1 - yesChance) / 2);
         lastAnswer = 'no';
         update();
     }
@@ -92,7 +118,7 @@
 
     whingeButton.addEventListener('click', () => {
         events.push({ yesChance, type: 'whinge', timestamp: Date.now() })
-        yesChance = Math.min(yesChance, 0.1);
+        yesChance *= yesChance;
         update();
     });
 
