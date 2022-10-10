@@ -5,12 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <style type="text/css">
         body {
-            font-size: 70px;
+            font-size: 50px;
             font-family: Arial;
+            text-align: center;
         }
 
         button {
             font: inherit;
+            margin: 0.1em;
         }
 
         ul {
@@ -21,17 +23,17 @@
     </style>
 </head>
 <body>
+    <label >Yes chance <span id="yesChance"></span></label>
     <h1 id="answer">___</h1>
     <button id="maybe" type="button">Maybe</button>
     <button id="no" type="button">No</button>
     <button id="whinge" type="button">Whinge</button>
-    <label >Yes chance <span id="yesChance"></span></label>
     <ul id="eventList"></ul>
 </body>
 <script type="text/javascript">
     const maxYes = 0.9;
     const yesRecoveryRate = 0.0000001;
-    const answerText = document.querySelector('#maybe');
+    const answerText = document.querySelector('#answer');
     const yesButton = document.querySelector('#maybe');
     const noButton = document.querySelector('#no');
     const whingeButton = document.querySelector('#whinge');
@@ -40,9 +42,11 @@
     let yesChance = localStorage.getItem('yesChance') || 1;
     const eventsJson = localStorage.getItem('events');
     let events = eventsJson ? JSON.parse(eventsJson) : [];
+    let lastAnswer = localStorage.getItem('lastAnswer') || '___';
 
     function render() {
-        yesChanceText.textContent = yesChance.toFixed(2);
+        answerText.textContent = lastAnswer;
+        yesChanceText.textContent = `${(yesChance * 100).toFixed(2)}%`;
         Array.from(eventList.childNodes).map(node => node.remove());
         events.slice().reverse().forEach(event => {
             const item = document.createElement('li');;
@@ -70,8 +74,8 @@
     function no() {
         events.push({ yesChance, type: 'no', timestamp: Date.now() })
         yesChance *= 0.8;
+        lastAnswer = 'no';
         update();
-        alert('no');
     }
 
     yesButton.addEventListener('click', event => {
@@ -80,7 +84,8 @@
         }
 
         events.push({ yesChance, type: 'yes', timestamp: Date.now() })
-        alert('yes');
+        lastAnswer = 'yes';
+        update();
     });
 
     noButton.addEventListener('click', no);
