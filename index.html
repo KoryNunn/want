@@ -35,41 +35,59 @@
         .result {
             text-transform: capitalize;
             font-weight: 600;
-            width: 70px;
+            width: 170px;
         }
     </style>
 </head>
 <body>
     <label >Yes chance <span id="yesChance"></span></label>
+    <label >Behavior bonus <span id="behaviourBonus"></span></label>
     <h1 id="answer">___</h1>
     <button id="maybe" type="button">Maybe</button>
     <button id="no" type="button">No</button>
     <button id="whinge" type="button">Whinge</button>
+    <button id="goodBehaviour" type="button">Good Behaviour</button>
     <ul id="eventList"></ul>
 </body>
 <script type="text/javascript">
     const maxYes = 0.9;
+    const behaviourBonusStep = 0.05;
+
+    const stateJSON = localStorage.getItem('wantState');
+    const state = {
+        yesChance: maxYes,
+        lastAnswer: '___',
+        lastUpdate: 0,
+        events: [],
+        behaviourBonus: 0,
+        ...(stateJSON ? JSON.parse(stateJSON) : {
+            yesChance: localStorage.getItem('yesChance') ? Number(localStorage.getItem('yesChance')) : maxYes,
+            lastAnswer: localStorage.getItem('lastAnswer') || '___',
+            lastUpdate: localStorage.getItem('lastUpdate') ? Number(localStorage.getItem('lastUpdate')) : 0,
+            events: localStorage.getItem('events') ? JSON.parse(localStorage.getItem('events')) : [],
+            behaviourBonus: 0
+        })
+    };
     const yesRecoveryRate = 0.000001;
     const answerText = document.querySelector('#answer');
-    const yesButton = document.querySelector('#maybe');
+    const maybeButton = document.querySelector('#maybe');
     const noButton = document.querySelector('#no');
     const whingeButton = document.querySelector('#whinge');
+    const goodBehaviourButton = document.querySelector('#goodBehaviour');
     const yesChanceText = document.querySelector('#yesChance');
+    const behaviourBonusText = document.querySelector('#behaviourBonus');
     const eventList = document.querySelector('#eventList');
-    let yesChance = localStorage.getItem('yesChance') || 1;
-    const eventsJson = localStorage.getItem('events');
-    let events = eventsJson ? JSON.parse(eventsJson) : [];
-    let lastAnswer = localStorage.getItem('lastAnswer') || '___';
 
     function renderAsPercent(scalar) {
         return `${(scalar * 100).toFixed(2)}%`;
     }
 
     function render() {
-        answerText.textContent = lastAnswer;
-        yesChanceText.textContent = renderAsPercent(yesChance);
+        answerText.textContent = state.lastAnswer;
+        yesChanceText.textContent = renderAsPercent(state.yesChance);
+        behaviourBonusText.textContent = renderAsPercent(state.behaviourBonus);
         Array.from(eventList.childNodes).map(node => node.remove());
-        events.slice().reverse().forEach(event => {
+        state.events.slice().reverse().forEach(event => {
             const item = document.createElement('li');;
             item.innerHTML = `
                 <span>${new Date(event.timestamp).toLocaleString()}</span><span class="result">${event.type}</span><span class="yesChance">(${renderAsPercent(event.yesChance)})</span>
@@ -78,47 +96,64 @@
         });
     }
 
-    let lastUpdate = localStorage.getItem('lastUpdate') || null;
     let updateTimeout;
     function update() {
         clearTimeout(updateTimeout);
         const now = Date.now();
-        const timeSinceNextUpdate = (Date.now() - lastUpdate) || 0;
-        yesChance = Math.min(yesChance * 1 + Math.pow(yesChance, 2) * yesRecoveryRate * timeSinceNextUpdate, maxYes);
+        const timeSinceNextUpdate = (Date.now() - state.lastUpdate) || 0;
+        state.yesChance = Math.min(state.yesChance * 1 + Math.pow(state.yesChance, 2) * yesRecoveryRate * timeSinceNextUpdate, maxYes);
+        state.behaviourBonus = Math.max(0, state.behaviourBonus * 1 - (yesRecoveryRate / 1000 * timeSinceNextUpdate));
 
-        lastUpdate = now;
-        localStorage.setItem('yesChance', yesChance);
-        localStorage.setItem('lastUpdate', lastUpdate);
-        localStorage.setItem('events', JSON.stringify(events));
-        localStorage.setItem('lastAnswer', lastAnswer);
+        state.lastUpdate = now;
+        localStorage.setItem('wantState', JSON.stringify(state));
         render();
         updateTimeout = setTimeout(update, 100);
     }
 
     update()
 
+    function pushEvent(type) {
+        state.events.push({
+            yesChance: state.yesChance,
+            behaviourBonus: state.behaviourBonus,
+            type,
+            timestamp: Date.now()
+        })
+    }
+
     function no() {
-        events.push({ yesChance, type: 'no', timestamp: Date.now() })
-        yesChance *= (1 - (1 - yesChance) / 2);
-        lastAnswer = 'no';
+        pushEvent('no');
+        state.behaviourBonus = Math.max(0, state.behaviourBonus - behaviourBonusStep);
+        state.yesChance *= (1 - (1 - state.yesChance) / 2);
+        state.lastAnswer = 'no';
         update();
     }
 
-    yesButton.addEventListener('click', event => {
-        if(Math.random() > yesChance) {
+    maybeButton.addEventListener('click', event => {
+        if(Math.random() > (state.yesChance + state.behaviourBonus)) {
             return no();
         }
 
-        events.push({ yesChance, type: 'yes', timestamp: Date.now() })
-        lastAnswer = 'yes';
+        pushEvent('yes');
+        state.behaviourBonus = Math.max(0, state.behaviourBonus - behaviourBonusStep);
+        state.lastAnswer = 'yes';
         update();
     });
 
     noButton.addEventListener('click', no);
 
     whingeButton.addEventListener('click', () => {
-        events.push({ yesChance, type: 'whinge', timestamp: Date.now() })
-        yesChance *= yesChance;
+        pushEvent('whinge');
+        state.behaviourBonus = 0;
+        state.yesChance *= state.yesChance;
+        state.lastAnswer = 'whinge';
+        update();
+    });
+
+    goodBehaviourButton.addEventListener('click', () => {
+        state.behaviourBonus += behaviourBonusStep;
+        state.lastAnswer = 'goodBehaviour';
+        pushEvent('goodBehaviour');
         update();
     });
 
