@@ -151,7 +151,9 @@
     });
 
     goodBehaviourButton.addEventListener('click', () => {
-        state.behaviourBonus += behaviourBonusStep;
+        state.yesChance += behaviourBonusStep;
+        state.behaviourBonus += Math.max(0, state.yesChance - maxYes);
+        state.yesChance = Math.min(maxYes, state.yesChance);
         state.lastAnswer = 'goodBehaviour';
         pushEvent('goodBehaviour');
         update();
